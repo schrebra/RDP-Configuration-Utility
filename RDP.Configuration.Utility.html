@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDP Configuration Utility</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .section {
+            margin-bottom: 25px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"], input[type="number"], input[type="file"], input[type="password"], select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .description {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+            white-space: pre-wrap;
+        }
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .password-hash-form {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #generateRdpButton {
+            display: block;
+            width: 100%;
+            margin-top: 20px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>RDP Configuration Utility</h1>
+
+        <div class="section">
+            <label for="jsonFile"></label>
+            <input type="file" id="jsonFile" accept=".json" onchange="loadJSONFile()">
+        </div>
+
+        <form id="rdpForm">
+            <!-- RDP options will be dynamically generated here -->
+        </form>
+
+        <button id="generateRdpButton" onclick="generateRdpFile()" style="display: none;">Generate RDP File</button>
+    </div>
+
+    <script>
+        let allRdpOptions = {};
+
+        function loadJSONFile() {
+            const fileInput = document.getElementById('jsonFile');
+            const file = fileInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        allRdpOptions = JSON.parse(e.target.result);
+                        createFormFields();
+                        document.getElementById('generateRdpButton').style.display = 'block';
+                    } catch (error) {
+                        console.error('Error parsing JSON:', error);
+                        alert('Error parsing JSON file. Please check the console for details.');
+                    }
+                };
+                reader.readAsText(file);
+            } else {
+                alert('Please select a file.');
+            }
+        }
+
+        function createFormFields() {
+            const form = document.getElementById('rdpForm');
+            form.innerHTML = ''; // Clear previous content
+            for (const [catKey, category] of Object.entries(allRdpOptions)) {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'section';
+                categoryDiv.innerHTML = `<h3>${catKey}</h3>`;
+                
+                for (const [key, option] of Object.entries(category)) {
+                    const label = document.createElement('label');
+                    label.textContent = key;
+                    categoryDiv.appendChild(label);
+
+                    const description = document.createElement('div');
+                    description.className = 'description';
+                    description.textContent = option.description;
+                    categoryDiv.appendChild(description);
+
+                    let input;
+                    if (option.type === 'i') {
+                        input = document.createElement('input');
+                        input.type = 'number';
+                    } else if (option.type === 's' || option.type === 'b') {
+                        input = document.createElement('input');
+                        input.type = 'text';
+                    }
+                    input.id = `${catKey}-${key}`;
+                    input.value = option.value;
+                    categoryDiv.appendChild(input);
+
+                    // Add password hash generation form for "password 51" option
+                    if (key === 'password 51') {
+                        const hashForm = createPasswordHashForm(input);
+                        categoryDiv.appendChild(hashForm);
+                    }
+                }
+                form.appendChild(categoryDiv);
+            }
+        }
+
+        function createPasswordHashForm(targetInput) {
+            const formDiv = document.createElement('div');
+            formDiv.className = 'password-hash-form';
+            formDiv.innerHTML = `
+                <label>Generate Password Hash</label>
+                <input type="password" id="passwordInput" placeholder="Enter password">
+                <button type="button" onclick="generatePasswordHash('${targetInput.id}')">Generate Hash</button>
+                <div id="hashResult"></div>
+            `;
+            return formDiv;
+        }
+
+        async function generatePasswordHash(targetInputId) {
+            const password = document.getElementById('passwordInput').value;
+            if (!password) {
+                alert('Please enter a password');
+                return;
+            }
+
+            // Convert password to UTF-16LE bytes
+            const utf16LeBytes = new Uint8Array(password.length * 2);
+            for (let i = 0; i < password.length; i++) {
+                utf16LeBytes[i * 2] = password.charCodeAt(i) & 0xff;
+                utf16LeBytes[i * 2 + 1] = password.charCodeAt(i) >> 8;
+            }
+
+            // Hash the password using SHA-256
+            const hashBuffer = await crypto.subtle.digest('SHA-256', utf16LeBytes);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+            // Display the hash result and update the target input
+            document.getElementById('hashResult').textContent = `Generated Hash: ${hashHex}`;
+            document.getElementById(targetInputId).value = hashHex;
+        }
+
+        function generateRdpFile() {
+            let rdpContent = '';
+            for (const [catKey, category] of Object.entries(allRdpOptions)) {
+                for (const [key, option] of Object.entries(category)) {
+                    const input = document.getElementById(`${catKey}-${key}`);
+                    if (input && input.value !== '') {
+                        rdpContent += `${key}:${option.type}:${input.value}\n`;
+                    }
+                }
+            }
+            
+            const blob = new Blob([rdpContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'custom.rdp';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function fullType(type) {
+            switch(type) {
+                case 'i': return 'Integer';
+                case 's': return 'String';
+                case 'b': return 'Boolean';
+                default: return type;
+            }
+        }
+    </script>
+</body>
+</html>
