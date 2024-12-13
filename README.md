@@ -2,9 +2,6 @@
 
 A set of tools to simplify the creation and management of Remote Desktop Protocol (RDP) connection files with comprehensive configuration options.
 
-![Screenshot_2024-12-13_08-21-30](https://github.com/user-attachments/assets/013a4435-bc0a-4e19-ace4-d6c70a6446ec)
-
-
 ## Overview
 
 This project provides a JSON schema (`rdpoptions.json`) that documents all available RDP configuration settings and a web-based RDP file editor. It helps system administrators and users create properly configured RDP files without having to memorize or look up the numerous configuration options.
