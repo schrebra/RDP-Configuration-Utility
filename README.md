@@ -78,7 +78,7 @@ Control device redirection including:
 #### Method 1: Using the Web Editor Directly
 1. Click on the green Code button and at the bottom download zip
 2. Unzip it to a folder
-3. Double-click the `Generate.RDP.File.html` file from your computer
+3. Double-click the `RDP.Configuration.Utility.html` file from your computer
 4. When the webpage opens, you'll see a "Browse rdpoptions.json" button
 5. Click this button and select the `rdpoptions.json` file from your computer
 6. The editor will load with all available RDP settings
